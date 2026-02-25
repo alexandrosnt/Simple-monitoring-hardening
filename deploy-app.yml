@@ -23,6 +23,14 @@
         name: sudo
         state: present
 
+    - name: Create postgres data directory
+      file:
+        path: /var/lib/postgresql/data
+        state: directory
+        owner: postgres
+        group: postgres
+        mode: "0700"
+
     - name: Init database
       command: initdb -D /var/lib/postgresql/data
       become: true
