@@ -18,6 +18,11 @@
         name: postgresql
         state: present
 
+    - name: Install sudo
+      apk:
+        name: sudo
+        state: present
+
     - name: Init database
       command: initdb -D /var/lib/postgresql/data
       become: true
