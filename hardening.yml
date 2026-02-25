@@ -1,5 +1,13 @@
 - hosts: all
+  gather_facts: false
   tasks:
+    - name: Install Python
+      raw: apk add --no-cache python3
+      changed_when: false
+
+    - name: Gather facts
+      setup:
+
     - name: Create deploy user
       user:
         name: deploy
@@ -10,7 +18,7 @@
     - name: Set up SSH key for deploy user
       authorized_key:
         user: deploy
-        key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+        key: "{{ lookup('file', '~/.ssh/cluster01.pub') }}"
 
     - name: Disable root SSH password login
       lineinfile:
