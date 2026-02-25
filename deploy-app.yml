@@ -4,7 +4,6 @@
       apk:
         name:
           - nginx
-          - nginx-openrc
         state: present
 
     - name: Start nginx
@@ -19,7 +18,6 @@
       apk:
         name:
           - postgresql
-          - postgresql-openrc
           - sudo
         state: present
 
