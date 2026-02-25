@@ -38,6 +38,6 @@
 
     - name: Start postgresql
       service:
-        name: postgresql
+        name: postgresql-bdr
         state: started
         enabled: true
