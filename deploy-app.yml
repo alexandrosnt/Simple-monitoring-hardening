@@ -2,7 +2,9 @@
   tasks:
     - name: Install nginx
       apk:
-        name: nginx
+        name:
+          - nginx
+          - nginx-openrc
         state: present
 
     - name: Start nginx
@@ -15,12 +17,10 @@
   tasks:
     - name: Install postgresql
       apk:
-        name: postgresql
-        state: present
-
-    - name: Install sudo
-      apk:
-        name: sudo
+        name:
+          - postgresql
+          - postgresql-openrc
+          - sudo
         state: present
 
     - name: Create postgres data directory

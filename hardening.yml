@@ -1,8 +1,8 @@
 - hosts: all
   gather_facts: false
   tasks:
-    - name: Install Python
-      raw: apk add --no-cache python3
+    - name: Install Python and base packages
+      raw: apk add --no-cache python3 openssh-server-pam openrc sudo
       changed_when: false
 
     - name: Gather facts
@@ -12,7 +12,6 @@
       user:
         name: deploy
         shell: /bin/sh
-        groups: wheel
         create_home: true
 
     - name: Set up SSH key for deploy user

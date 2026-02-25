@@ -1,10 +1,5 @@
 - hosts: all
   tasks:
-    - name: Download node_exporter
-      get_url:
-        url: https://github.com/prometheus/node_exporter/releases/download/v1.9.0/node_exporter-1.9.0.linux-amd64.tar.gz
-        dest: /tmp/node_exporter.tar.gz
-
     - name: Install GNU tar
       apk:
         name: tar
@@ -22,5 +17,18 @@
         remote_src: true
         extra_opts: [--strip-components=1]
 
-    - name: Run node_exporter
-      shell: nohup /usr/local/bin/node_exporter &
+    - name: Create node_exporter init script
+      copy:
+        dest: /etc/init.d/node_exporter
+        mode: "0755"
+        content: |
+          #!/sbin/openrc-run
+          command="/usr/local/bin/node_exporter"
+          command_background=true
+          pidfile="/run/node_exporter.pid"
+
+    - name: Start node_exporter
+      service:
+        name: node_exporter
+        state: started
+        enabled: true
