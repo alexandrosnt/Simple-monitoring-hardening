@@ -1,25 +1,27 @@
-  name: Deploy Infrastructure
+name: Deploy Infrastructure
 
-  on:
-    push:
-      branches: [main]
+on:
+  push:
+    branches: [main]
 
-  jobs:
-    deploy:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v4
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-        - name: Install Ansible
-          run: sudo apt install -y ansible
+      - name: Install Ansible
+        run: sudo apt install -y ansible
 
-        - name: Setup SSH
-          run: |
-            mkdir -p ~/.ssh
-            echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-            chmod 600 ~/.ssh/id_ed25519
-            ssh-keygen -y -f ~/.ssh/id_ed25519 > ~/.ssh/id_ed25519.pub
-            ssh-keyscan -p 2227 51.75.64.176 >> ~/.ssh/known_hosts
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/cluster01
+          echo "${{ secrets.SSH_PRIVATE_KEY_2 }}" > ~/.ssh/cluster02
+          chmod 600 ~/.ssh/cluster01 ~/.ssh/cluster02
+          ssh-keygen -y -f ~/.ssh/cluster01 > ~/.ssh/cluster01.pub
+          ssh-keyscan -p 2227 51.75.64.176 >> ~/.ssh/known_hosts
+          ssh-keyscan -p 2228 51.75.64.176 >> ~/.ssh/known_hosts
 
-        - name: Run Ansible
-          run: ansible-playbook -i inventory.ini site.yml
+      - name: Run Ansible
+        run: ansible-playbook -i inventory.ini site.yml

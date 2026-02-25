@@ -5,31 +5,28 @@
         name: nginx
         state: present
 
-    - name: Deploy config
-      template:
-        src: templates/nginx.conf.j2
-        dest: /etc/nginx/nginx.conf
-      notify: restart nginx
-
     - name: Start nginx
       service:
         name: nginx
         state: started
-
-  handlers:
-    - name: restart nginx
-      service:
-        name: nginx
-        state: restarted
+        enabled: true
 
 - hosts: databases
   tasks:
-    - name: Install postgres
+    - name: Install postgresql
       apk:
         name: postgresql
         state: present
 
     - name: Init database
       command: initdb -D /var/lib/postgresql/data
+      become: true
+      become_user: postgres
       args:
         creates: /var/lib/postgresql/data/PG_VERSION
+
+    - name: Start postgresql
+      service:
+        name: postgresql
+        state: started
+        enabled: true
