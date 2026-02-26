@@ -1,10 +1,10 @@
 ---
 project_name: aws-devops-lab
-environment: development
+env_name: development
 
 common_tags:
   project: "{{ project_name }}"
-  environment: "{{ environment }}"
+  environment: "{{ env_name }}"
   managed_by: ansible
 
 ntp_servers:

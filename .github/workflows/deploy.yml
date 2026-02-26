@@ -60,12 +60,14 @@ jobs:
       - name: Install Ansible and WinRM
         run: |
           sudo apt update
-          sudo apt install -y ansible python3-winrm
+          sudo apt install -y ansible
+          pip install pywinrm
 
       - name: Install Ansible collections
         run: |
           ansible-galaxy collection install ansible.windows
           ansible-galaxy collection install community.windows
+          ansible-galaxy collection install microsoft.iis
 
       - name: Run Windows management
         run: >

@@ -1,6 +1,6 @@
 ---
 - name: Configure Windows Firewall rules
-  community.windows.win_firewall_rule:
+  ansible.windows.win_firewall_rule:
     name: "{{ item.name }}"
     localport: "{{ item.localport }}"
     protocol: "{{ item.protocol }}"
@@ -11,7 +11,7 @@
   loop: "{{ win_firewall_rules }}"
 
 - name: Enable Windows Firewall for all profiles
-  community.windows.win_firewall:
+  ansible.windows.win_firewall:
     state: enabled
     profiles:
       - Domain

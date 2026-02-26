@@ -17,7 +17,7 @@
     state: started
 
 - name: Configure application pool
-  community.windows.win_iis_webapppool:
+  microsoft.iis.web_app_pool:
     name: "{{ win_iis_app_pool_name }}"
     state: started
     attributes:
@@ -31,7 +31,7 @@
   loop: "{{ win_iis_sites }}"
 
 - name: Configure IIS websites
-  community.windows.win_iis_website:
+  microsoft.iis.website:
     name: "{{ item.name }}"
     port: "{{ item.port }}"
     physical_path: "{{ item.physical_path }}"
