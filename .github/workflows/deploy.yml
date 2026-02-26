@@ -60,8 +60,8 @@ jobs:
       - name: Install Ansible and WinRM
         run: |
           sudo apt update
-          sudo apt install -y ansible
-          pip install pywinrm
+          sudo apt install -y ansible python3-pip
+          pip3 install pywinrm --break-system-packages
 
       - name: Install Ansible collections
         run: |
