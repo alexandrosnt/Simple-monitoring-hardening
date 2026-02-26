@@ -12,6 +12,10 @@
       get_url:
         url: https://github.com/prometheus/node_exporter/releases/download/v1.9.0/node_exporter-1.9.0.linux-amd64.tar.gz
         dest: /tmp/node_exporter.tar.gz
+      retries: 3
+      delay: 5
+      register: download_result
+      until: download_result is succeeded
 
     - name: Extract
       unarchive:
