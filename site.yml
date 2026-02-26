@@ -1,3 +1,15 @@
+---
+# Linux server configuration
 - import_playbook: hardening.yml
 - import_playbook: monitoring.yml
 - import_playbook: deploy-app.yml
+
+# AWS infrastructure (LocalStack)
+- import_playbook: aws-infrastructure.yml
+- import_playbook: ec2-storage.yml
+
+# Real storage operations on Linux hosts
+- import_playbook: storage-management.yml
+
+# Windows management (uncomment when target available)
+# - import_playbook: windows-management.yml

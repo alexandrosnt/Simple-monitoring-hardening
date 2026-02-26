@@ -1,0 +1,76 @@
+---
+- name: Configure Windows Firewall rules
+  community.windows.win_firewall_rule:
+    name: "{{ item.name }}"
+    localport: "{{ item.localport }}"
+    protocol: "{{ item.protocol }}"
+    direction: "{{ item.direction }}"
+    action: "{{ item.action }}"
+    enabled: true
+    state: present
+  loop: "{{ win_firewall_rules }}"
+
+- name: Enable Windows Firewall for all profiles
+  community.windows.win_firewall:
+    state: enabled
+    profiles:
+      - Domain
+      - Private
+      - Public
+
+- name: Disable SMBv1
+  ansible.windows.win_optional_feature:
+    name: SMB1Protocol
+    state: absent
+  when: win_hardening_disable_smbv1
+  register: smbv1_result
+
+- name: Reboot if SMBv1 removal requires it
+  ansible.windows.win_reboot:
+  when: smbv1_result.reboot_required | default(false)
+
+- name: Configure WinRM for HTTPS
+  ansible.windows.win_shell: |
+    $cert = New-SelfSignedCertificate -DnsName $env:COMPUTERNAME -CertStoreLocation Cert:\LocalMachine\My
+    winrm create winrm/config/Listener?Address=*+Transport=HTTPS "@{Hostname=`"$env:COMPUTERNAME`";CertificateThumbprint=`"$($cert.Thumbprint)`"}"
+  args:
+    creates: C:\winrm_https_configured.flag
+  register: winrm_https
+  failed_when: false
+
+- name: Mark WinRM HTTPS as configured
+  ansible.windows.win_file:
+    path: C:\winrm_https_configured.flag
+    state: touch
+  when: winrm_https.rc | default(1) == 0
+
+- name: Install Windows Updates (security only)
+  ansible.windows.win_updates:
+    category_names:
+      - SecurityUpdates
+      - CriticalUpdates
+    state: installed
+    reboot: false
+  register: win_updates
+  timeout: 600
+  ignore_errors: true  # Updates can timeout on fresh installs
+
+- name: Harden registry - disable autorun
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer
+    name: NoDriveTypeAutoRun
+    data: 255
+    type: dword
+
+- name: Harden registry - require NTLMv2
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\Lsa
+    name: LmCompatibilityLevel
+    data: 5
+    type: dword
+
+- name: Enable audit policy for logon events
+  ansible.windows.win_shell: |
+    auditpol /set /subcategory:"Logon" /success:enable /failure:enable
+  when: win_hardening_enable_audit
+  changed_when: false

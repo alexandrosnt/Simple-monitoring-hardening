@@ -1,8 +1,11 @@
-- hosts: all
+---
+- hosts: linux
   tasks:
-    - name: Install GNU tar
+    - name: Install GNU tar and curl
       apk:
-        name: tar
+        name:
+          - tar
+          - curl
         state: present
 
     - name: Download node_exporter
@@ -32,3 +35,36 @@
         name: node_exporter
         state: started
         enabled: true
+
+    - name: Verify node_exporter is responding
+      uri:
+        url: "http://127.0.0.1:9100/metrics"
+        return_content: false
+        status_code: 200
+      register: exporter_health
+      retries: 3
+      delay: 5
+      until: exporter_health.status == 200
+
+    - name: Create monitoring check script
+      copy:
+        dest: /usr/local/bin/check_services.sh
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          LOGFILE="/var/log/service_health.log"
+          DATE=$(date '+%Y-%m-%d %H:%M:%S')
+          for svc in node_exporter sshd; do
+            if rc-service $svc status > /dev/null 2>&1; then
+              echo "$DATE $svc: OK" >> $LOGFILE
+            else
+              echo "$DATE $svc: FAILED" >> $LOGFILE
+            fi
+          done
+
+    - name: Schedule health check cron job
+      cron:
+        name: "service health check"
+        minute: "*/5"
+        job: "/usr/local/bin/check_services.sh"
+        user: root

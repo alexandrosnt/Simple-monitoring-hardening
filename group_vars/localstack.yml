@@ -1,0 +1,39 @@
+---
+aws_region: eu-central-1
+aws_endpoint_url: "http://51.75.64.176:4566"
+aws_access_key: test
+aws_secret_key: test
+
+vpc_cidr: "10.100.0.0/16"
+vpc_name: "{{ project_name }}-vpc"
+
+subnets:
+  public:
+    cidr: "10.100.1.0/24"
+    az: "{{ aws_region }}a"
+    name: "{{ project_name }}-public"
+  private:
+    cidr: "10.100.2.0/24"
+    az: "{{ aws_region }}b"
+    name: "{{ project_name }}-private"
+
+security_group_name: "{{ project_name }}-sg"
+security_group_rules:
+  - proto: tcp
+    from_port: 80
+    to_port: 80
+    cidr_ip: "0.0.0.0/0"
+    rule_desc: "Allow HTTP"
+  - proto: tcp
+    from_port: 22
+    to_port: 22
+    cidr_ip: "10.100.0.0/16"
+    rule_desc: "Allow SSH from VPC"
+
+ec2_instance_type: t2.micro
+ec2_ami: ami-0c55b159cbfafe1f0
+ec2_key_name: "{{ project_name }}-key"
+
+ebs_volume_size: 10
+ebs_volume_type: gp2
+ebs_device_name: /dev/xvdf

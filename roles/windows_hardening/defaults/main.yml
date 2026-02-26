@@ -1,0 +1,20 @@
+---
+win_firewall_rules:
+  - name: Allow HTTP
+    localport: 80
+    protocol: tcp
+    direction: in
+    action: allow
+  - name: Allow HTTPS
+    localport: 443
+    protocol: tcp
+    direction: in
+    action: allow
+  - name: Allow WinRM HTTPS
+    localport: 5986
+    protocol: tcp
+    direction: in
+    action: allow
+
+win_hardening_disable_smbv1: true
+win_hardening_enable_audit: true

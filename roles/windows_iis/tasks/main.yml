@@ -1,0 +1,47 @@
+---
+- name: Install IIS and management features
+  ansible.windows.win_feature:
+    name: "{{ win_iis_features }}"
+    state: present
+    include_management_tools: true
+  register: iis_install
+
+- name: Reboot if required by feature install
+  ansible.windows.win_reboot:
+  when: iis_install.reboot_required
+
+- name: Ensure IIS service is running
+  ansible.windows.win_service:
+    name: W3SVC
+    start_mode: auto
+    state: started
+
+- name: Configure application pool
+  community.windows.win_iis_webapppool:
+    name: "{{ win_iis_app_pool_name }}"
+    state: started
+    attributes:
+      managedRuntimeVersion: v4.0
+      startMode: AlwaysRunning
+
+- name: Create site directories
+  ansible.windows.win_file:
+    path: "{{ item.physical_path }}"
+    state: directory
+  loop: "{{ win_iis_sites }}"
+
+- name: Configure IIS websites
+  community.windows.win_iis_website:
+    name: "{{ item.name }}"
+    port: "{{ item.port }}"
+    physical_path: "{{ item.physical_path }}"
+    application_pool: "{{ win_iis_app_pool_name }}"
+    state: "{{ item.state }}"
+  loop: "{{ win_iis_sites }}"
+
+- name: Deploy default page
+  ansible.windows.win_copy:
+    content: |
+      <!DOCTYPE html>
+      <html><body><h1>{{ project_name }} - IIS</h1><p>Managed by Ansible</p></body></html>
+    dest: "{{ win_iis_sites[0].physical_path }}\\index.html"

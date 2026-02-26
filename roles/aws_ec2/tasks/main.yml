@@ -1,0 +1,43 @@
+---
+- name: Launch EC2 instance
+  amazon.aws.ec2_instance:
+    name: "{{ aws_ec2_tags.Name | default('ec2-instance') }}"
+    instance_type: "{{ aws_ec2_instance_type }}"
+    image_id: "{{ aws_ec2_ami }}"
+    key_name: "{{ aws_ec2_key_name }}"
+    region: "{{ aws_ec2_region }}"
+    endpoint_url: "{{ aws_ec2_endpoint_url }}"
+    network:
+      assign_public_ip: "{{ aws_ec2_assign_public_ip }}"
+    tags: "{{ aws_ec2_tags }}"
+    state: running
+  register: aws_ec2_instance
+
+- name: Create EBS volume
+  amazon.aws.ec2_vol:
+    volume_size: "{{ aws_ebs_volume_size }}"
+    volume_type: "{{ aws_ebs_volume_type }}"
+    zone: "{{ aws_ebs_zone }}"
+    region: "{{ aws_ec2_region }}"
+    endpoint_url: "{{ aws_ec2_endpoint_url }}"
+    tags: "{{ aws_ec2_tags | combine({'Purpose': 'data'}) }}"
+    state: present
+  register: aws_ebs_volume
+
+- name: Attach EBS volume to instance
+  amazon.aws.ec2_vol:
+    id: "{{ aws_ebs_volume.volume_id }}"
+    instance: "{{ aws_ec2_instance.instances[0].instance_id }}"
+    device_name: "{{ aws_ebs_device_name }}"
+    region: "{{ aws_ec2_region }}"
+    endpoint_url: "{{ aws_ec2_endpoint_url }}"
+    state: present
+
+- name: Create EBS snapshot
+  amazon.aws.ec2_snapshot:
+    volume_id: "{{ aws_ebs_volume.volume_id }}"
+    description: "Backup of {{ aws_ec2_tags.Name | default('data') }} volume"
+    region: "{{ aws_ec2_region }}"
+    endpoint_url: "{{ aws_ec2_endpoint_url }}"
+    tags: "{{ aws_ec2_tags | combine({'Type': 'backup'}) }}"
+  register: aws_ebs_snapshot

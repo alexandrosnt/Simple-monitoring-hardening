@@ -1,0 +1,38 @@
+---
+ansible_connection: winrm
+ansible_winrm_transport: basic
+ansible_winrm_server_cert_validation: ignore
+ansible_winrm_scheme: http
+ansible_port: 5985
+
+iis_sites:
+  - name: Default Web Site
+    port: 80
+    physical_path: C:\inetpub\wwwroot
+    state: started
+  - name: staging
+    port: 8080
+    physical_path: C:\inetpub\staging
+    state: started
+
+windows_features:
+  - Web-Server
+  - Web-Mgmt-Console
+  - NET-Framework-45-Core
+
+firewall_rules:
+  - name: Allow HTTP
+    localport: 80
+    protocol: tcp
+    direction: in
+    action: allow
+  - name: Allow HTTPS
+    localport: 443
+    protocol: tcp
+    direction: in
+    action: allow
+  - name: Allow WinRM HTTPS
+    localport: 5986
+    protocol: tcp
+    direction: in
+    action: allow

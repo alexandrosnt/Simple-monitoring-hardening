@@ -1,0 +1,13 @@
+---
+aws_ec2_instance_type: t2.micro
+aws_ec2_ami: ami-0c55b159cbfafe1f0
+aws_ec2_key_name: default-key
+aws_ec2_region: eu-central-1
+aws_ec2_endpoint_url: "http://51.75.64.176:4566"
+aws_ec2_tags: {}
+aws_ec2_assign_public_ip: true
+
+aws_ebs_volume_size: 10
+aws_ebs_volume_type: gp2
+aws_ebs_device_name: /dev/xvdf
+aws_ebs_zone: "{{ aws_ec2_region }}a"

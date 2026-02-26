@@ -1,3 +1,30 @@
 *.pem
 *.key
+*.p12
+*.pfx
 secrets.tfvars
+*.retry
+vault_password.txt
+collections/
+
+# Ansible vault
+*vault*.yml
+!*vault_example*.yml
+
+# SSH keys
+id_rsa
+id_ed25519
+cluster01
+cluster02
+
+# Credentials
+.env
+*.credentials
+credentials.json
+.boto
+.aws/
+
+# Terraform state
+*.tfstate
+*.tfstate.backup
+.terraform/

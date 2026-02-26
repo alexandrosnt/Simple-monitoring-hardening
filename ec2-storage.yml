@@ -1,0 +1,77 @@
+---
+- hosts: localstack
+  gather_facts: false
+  tasks:
+    - name: Launch EC2 instance
+      amazon.aws.ec2_instance:
+        name: "{{ project_name }}-instance"
+        instance_type: "{{ ec2_instance_type }}"
+        image_id: "{{ ec2_ami }}"
+        key_name: "{{ ec2_key_name }}"
+        region: "{{ aws_region }}"
+        endpoint_url: "{{ aws_endpoint_url }}"
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        network:
+          assign_public_ip: true
+        tags: "{{ common_tags | combine({'Name': project_name + '-instance'}) }}"
+        state: running
+      register: ec2
+
+    - name: Display instance info
+      debug:
+        msg: "Instance ID: {{ ec2.instances[0].instance_id }}"
+
+    - name: Create EBS volume
+      amazon.aws.ec2_vol:
+        volume_size: "{{ ebs_volume_size }}"
+        volume_type: "{{ ebs_volume_type }}"
+        zone: "{{ subnets.public.az }}"
+        region: "{{ aws_region }}"
+        endpoint_url: "{{ aws_endpoint_url }}"
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        tags: "{{ common_tags | combine({'Name': project_name + '-data'}) }}"
+        state: present
+      register: ebs_vol
+
+    - name: Attach EBS volume to instance
+      amazon.aws.ec2_vol:
+        id: "{{ ebs_vol.volume_id }}"
+        instance: "{{ ec2.instances[0].instance_id }}"
+        device_name: "{{ ebs_device_name }}"
+        region: "{{ aws_region }}"
+        endpoint_url: "{{ aws_endpoint_url }}"
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        state: present
+
+    - name: Create EBS snapshot
+      amazon.aws.ec2_snapshot:
+        volume_id: "{{ ebs_vol.volume_id }}"
+        description: "{{ project_name }} data volume backup"
+        region: "{{ aws_region }}"
+        endpoint_url: "{{ aws_endpoint_url }}"
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        snapshot_tags: "{{ common_tags | combine({'Name': project_name + '-snapshot'}) }}"
+      register: snapshot
+
+    - name: Expand EBS volume
+      amazon.aws.ec2_vol:
+        id: "{{ ebs_vol.volume_id }}"
+        volume_size: "{{ ebs_volume_size * 2 }}"
+        zone: "{{ subnets.public.az }}"
+        region: "{{ aws_region }}"
+        endpoint_url: "{{ aws_endpoint_url }}"
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        modify_volume: true
+        state: present
+
+    - name: Display storage summary
+      debug:
+        msg:
+          - "Volume ID: {{ ebs_vol.volume_id }}"
+          - "Snapshot ID: {{ snapshot.snapshot_id }}"
+          - "Volume expanded to: {{ ebs_volume_size * 2 }}GB"

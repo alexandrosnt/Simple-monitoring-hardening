@@ -1,0 +1,29 @@
+---
+aws_vpc_cidr: "10.100.0.0/16"
+aws_vpc_name: "default-vpc"
+aws_vpc_region: eu-central-1
+aws_vpc_endpoint_url: "http://51.75.64.176:4566"
+aws_vpc_tags: {}
+
+aws_vpc_subnets:
+  public:
+    cidr: "10.100.1.0/24"
+    az: "{{ aws_vpc_region }}a"
+    name: "{{ aws_vpc_name }}-public"
+  private:
+    cidr: "10.100.2.0/24"
+    az: "{{ aws_vpc_region }}b"
+    name: "{{ aws_vpc_name }}-private"
+
+aws_vpc_security_group_name: "{{ aws_vpc_name }}-sg"
+aws_vpc_security_group_rules:
+  - proto: tcp
+    from_port: 80
+    to_port: 80
+    cidr_ip: "0.0.0.0/0"
+    rule_desc: "Allow HTTP"
+  - proto: tcp
+    from_port: 22
+    to_port: 22
+    cidr_ip: "{{ aws_vpc_cidr }}"
+    rule_desc: "Allow SSH from VPC"

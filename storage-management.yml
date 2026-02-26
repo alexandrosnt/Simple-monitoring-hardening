@@ -1,0 +1,78 @@
+---
+- hosts: linux
+  tasks:
+    - name: Install filesystem utilities
+      apk:
+        name:
+          - e2fsprogs
+          - util-linux
+          - lsblk
+        state: present
+
+    - name: Create directory for loopback mount
+      file:
+        path: /mnt/data
+        state: directory
+        mode: "0755"
+
+    - name: Create loopback disk image (100MB)
+      command: dd if=/dev/zero of=/opt/disk.img bs=1M count=100
+      args:
+        creates: /opt/disk.img
+
+    - name: Set up loop device
+      command: losetup -f /opt/disk.img
+      register: loop_setup
+      changed_when: loop_setup.rc == 0
+      failed_when: false
+
+    - name: Find loop device
+      command: losetup -j /opt/disk.img
+      register: loop_device
+      changed_when: false
+
+    - name: Extract loop device path
+      set_fact:
+        loop_dev: "{{ loop_device.stdout.split(':')[0] }}"
+      when: loop_device.stdout | length > 0
+
+    - name: Create ext4 filesystem
+      filesystem:
+        fstype: ext4
+        dev: "{{ loop_dev }}"
+      when: loop_dev is defined
+
+    - name: Mount loopback filesystem
+      mount:
+        path: /mnt/data
+        src: "{{ loop_dev }}"
+        fstype: ext4
+        state: mounted
+      when: loop_dev is defined
+
+    - name: Verify mount
+      command: df -h /mnt/data
+      register: mount_check
+      changed_when: false
+
+    - name: Display mount info
+      debug:
+        var: mount_check.stdout_lines
+
+    - name: Create test file on mounted filesystem
+      copy:
+        dest: /mnt/data/test.txt
+        content: |
+          Storage test file
+          Host: {{ inventory_hostname }}
+          Date: {{ ansible_date_time.iso8601 }}
+        mode: "0644"
+
+    - name: Check disk usage
+      command: du -sh /mnt/data
+      register: disk_usage
+      changed_when: false
+
+    - name: Display disk usage
+      debug:
+        var: disk_usage.stdout

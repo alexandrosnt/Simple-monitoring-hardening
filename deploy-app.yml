@@ -1,3 +1,4 @@
+---
 - hosts: webservers
   tasks:
     - name: Install nginx
@@ -6,11 +7,70 @@
           - nginx
         state: present
 
+    - name: Create web root directory
+      file:
+        path: /var/www/html
+        state: directory
+        owner: nginx
+        group: nginx
+        mode: "0755"
+
+    - name: Deploy index page from template
+      template:
+        src: templates/index.html.j2
+        dest: /var/www/html/index.html
+        owner: nginx
+        group: nginx
+        mode: "0644"
+
+    - name: Configure nginx vhost with health endpoint
+      copy:
+        dest: /etc/nginx/http.d/default.conf
+        content: |
+          server {
+              listen 8088 default_server;
+              server_name _;
+              root /var/www/html;
+              index index.html;
+
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+
+              location /health {
+                  access_log off;
+                  return 200 '{"status": "healthy"}';
+                  add_header Content-Type application/json;
+              }
+          }
+      notify: reload nginx
+
     - name: Start nginx
       service:
         name: nginx
         state: started
         enabled: true
+
+    - name: Reload nginx to pick up config
+      service:
+        name: nginx
+        state: reloaded
+
+    - name: Verify nginx health endpoint
+      uri:
+        url: "http://127.0.0.1:8088/health"
+        return_content: true
+        status_code: 200
+      register: nginx_health
+      retries: 3
+      delay: 3
+      until: nginx_health.status == 200
+
+  handlers:
+    - name: reload nginx
+      service:
+        name: nginx
+        state: reloaded
 
 - hosts: databases
   tasks:
@@ -18,6 +78,7 @@
       apk:
         name:
           - postgresql
+          - postgresql-client
           - sudo
         state: present
 
@@ -36,8 +97,55 @@
       args:
         creates: /var/lib/postgresql/data/PG_VERSION
 
+    - name: Deploy pg_hba.conf
+      template:
+        src: templates/pg_hba.conf.j2
+        dest: /var/lib/postgresql/data/pg_hba.conf
+        owner: postgres
+        group: postgres
+        mode: "0600"
+      notify: restart postgresql
+
+    - name: Configure PostgreSQL to listen on all interfaces
+      lineinfile:
+        path: /var/lib/postgresql/data/postgresql.conf
+        regexp: "^#?listen_addresses"
+        line: "listen_addresses = '*'"
+      notify: restart postgresql
+
     - name: Start postgresql
       service:
         name: postgresql-bdr
         state: started
         enabled: true
+
+    - name: Flush handlers to restart postgresql before DB setup
+      meta: flush_handlers
+
+    - name: Create application database
+      command: psql -h /tmp -c "CREATE DATABASE appdb;" postgres
+      become: true
+      become_user: postgres
+      register: db_create
+      changed_when: "'CREATE DATABASE' in db_create.stdout"
+      failed_when: "db_create.rc != 0 and 'already exists' not in db_create.stderr"
+
+    - name: Create application user
+      command: psql -h /tmp -c "CREATE USER appuser WITH PASSWORD 'changeme';" postgres
+      become: true
+      become_user: postgres
+      register: user_create
+      changed_when: "'CREATE ROLE' in user_create.stdout"
+      failed_when: "user_create.rc != 0 and 'already exists' not in user_create.stderr"
+
+    - name: Grant privileges
+      command: psql -h /tmp -c "GRANT ALL PRIVILEGES ON DATABASE appdb TO appuser;" postgres
+      become: true
+      become_user: postgres
+      changed_when: false
+
+  handlers:
+    - name: restart postgresql
+      service:
+        name: postgresql-bdr
+        state: restarted

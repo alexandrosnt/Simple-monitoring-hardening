@@ -1,4 +1,5 @@
-- hosts: all
+---
+- hosts: linux
   gather_facts: false
   tasks:
     - name: Install Python and base packages
@@ -10,13 +11,15 @@
 
     - name: Create deploy user
       user:
-        name: deploy
+        name: "{{ deploy_user }}"
         shell: /bin/sh
         create_home: true
+        groups: wheel
+        append: true
 
     - name: Set up SSH key for deploy user
       authorized_key:
-        user: deploy
+        user: "{{ deploy_user }}"
         key: "{{ lookup('file', '~/.ssh/cluster01.pub') }}"
 
     - name: Disable root SSH password login
@@ -26,10 +29,79 @@
         line: 'PermitRootLogin prohibit-password'
       notify: restart sshd
 
+    - name: Disable empty passwords
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitEmptyPasswords'
+        line: 'PermitEmptyPasswords no'
+      notify: restart sshd
+
+    - name: Set SSH MaxAuthTries
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?MaxAuthTries'
+        line: 'MaxAuthTries 3'
+      notify: restart sshd
+
     - name: Install firewall
       apk:
         name: iptables
         state: present
+
+    - name: Allow loopback traffic
+      iptables:
+        chain: INPUT
+        in_interface: lo
+        jump: ACCEPT
+
+    - name: Allow established and related connections
+      iptables:
+        chain: INPUT
+        ctstate: ESTABLISHED,RELATED
+        jump: ACCEPT
+
+    - name: Allow SSH on configured port
+      iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: "{{ ansible_port }}"
+        jump: ACCEPT
+        comment: "Allow SSH"
+
+    - name: Allow node_exporter metrics
+      iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: "9100"
+        jump: ACCEPT
+        comment: "Allow Prometheus scraping"
+
+    - name: Apply sysctl hardening
+      sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        sysctl_set: true
+        reload: true
+      loop:
+        - { key: 'net.ipv4.conf.all.rp_filter', value: '1' }
+        - { key: 'net.ipv4.conf.default.rp_filter', value: '1' }
+        - { key: 'net.ipv4.icmp_echo_ignore_broadcasts', value: '1' }
+        - { key: 'net.ipv4.conf.all.accept_redirects', value: '0' }
+        - { key: 'net.ipv4.conf.all.send_redirects', value: '0' }
+
+    - name: Restrict cron to root only
+      file:
+        path: /etc/cron.allow
+        state: touch
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Ensure only root in cron.allow
+      lineinfile:
+        path: /etc/cron.allow
+        line: root
+        create: true
 
   handlers:
     - name: restart sshd

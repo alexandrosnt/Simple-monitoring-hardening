@@ -1,0 +1,14 @@
+---
+project_name: aws-devops-lab
+environment: development
+
+common_tags:
+  project: "{{ project_name }}"
+  environment: "{{ environment }}"
+  managed_by: ansible
+
+ntp_servers:
+  - pool.ntp.org
+
+deploy_user: deploy
+deploy_group: deploy
