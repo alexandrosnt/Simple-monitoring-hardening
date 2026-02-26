@@ -33,10 +33,12 @@
 - name: Configure IIS websites
   microsoft.iis.website:
     name: "{{ item.name }}"
-    port: "{{ item.port }}"
     physical_path: "{{ item.physical_path }}"
     application_pool: "{{ win_iis_app_pool_name }}"
     state: "{{ item.state }}"
+    bindings:
+      set:
+        - port: "{{ item.port }}"
   loop: "{{ win_iis_sites }}"
 
 - name: Deploy default page

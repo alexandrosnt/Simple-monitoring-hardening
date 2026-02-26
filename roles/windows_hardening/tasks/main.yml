@@ -1,6 +1,6 @@
 ---
 - name: Configure Windows Firewall rules
-  ansible.windows.win_firewall_rule:
+  community.windows.win_firewall_rule:
     name: "{{ item.name }}"
     localport: "{{ item.localport }}"
     protocol: "{{ item.protocol }}"
@@ -53,7 +53,7 @@
     reboot: false
   register: win_updates
   timeout: 600
-  ignore_errors: true  # Updates can timeout on fresh installs
+  ignore_errors: true
 
 - name: Harden registry - disable autorun
   ansible.windows.win_regedit:
