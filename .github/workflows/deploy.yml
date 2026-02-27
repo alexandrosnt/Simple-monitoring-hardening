@@ -56,12 +56,8 @@ jobs:
   deploy-windows:
     name: Windows Server (DSC)
     runs-on: ubuntu-latest
-    needs: deploy-linux
 
     env:
-      JUMP_HOST: 51.75.64.176
-      JUMP_PORT: 2227
-      JUMP_USER: root
       WIN_HOST: ${{ secrets.WIN_HOST }}
       WIN_SSH_PORT: ${{ secrets.WIN_SSH_PORT || '2229' }}
       WIN_SSH_USER: ${{ secrets.WIN_SSH_USER || 'Administrator' }}
@@ -70,45 +66,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup SSH keys and jump host config
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/cluster01
           echo "${{ secrets.WIN_SSH_PRIVATE_KEY }}" > ~/.ssh/win_key
-          chmod 600 ~/.ssh/cluster01 ~/.ssh/win_key
-          ssh-keyscan -p $JUMP_PORT $JUMP_HOST >> ~/.ssh/known_hosts 2>/dev/null
-          cat > ~/.ssh/config << 'SSHEOF'
-          Host jump
-            HostName 51.75.64.176
-            Port 2227
-            User root
-            IdentityFile ~/.ssh/cluster01
-            StrictHostKeyChecking no
-
-          Host winserver
-            HostName $WIN_HOST_PLACEHOLDER
-            Port $WIN_PORT_PLACEHOLDER
-            User $WIN_USER_PLACEHOLDER
-            IdentityFile ~/.ssh/win_key
-            ProxyJump jump
-            StrictHostKeyChecking no
-          SSHEOF
-          sed -i "s|\$WIN_HOST_PLACEHOLDER|$WIN_HOST|g" ~/.ssh/config
-          sed -i "s|\$WIN_PORT_PLACEHOLDER|$WIN_SSH_PORT|g" ~/.ssh/config
-          sed -i "s|\$WIN_USER_PLACEHOLDER|$WIN_SSH_USER|g" ~/.ssh/config
+          chmod 600 ~/.ssh/win_key
+          ssh-keyscan -p $WIN_SSH_PORT $WIN_HOST >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Ensure remote directory exists
         run: |
-          ssh winserver "powershell -Command \"New-Item -Path '${{ env.DSC_PATH }}' -ItemType Directory -Force\""
+          ssh -o ConnectTimeout=30 -p $WIN_SSH_PORT -i ~/.ssh/win_key "$WIN_SSH_USER@$WIN_HOST" \
+            "powershell -Command \"New-Item -Path '${{ env.DSC_PATH }}' -ItemType Directory -Force\""
 
-      - name: Copy DSC scripts via jump host
+      - name: Copy DSC scripts
         run: |
-          scp dsc/HardeningConfig.ps1 dsc/IISConfig.ps1 dsc/Deploy-DSC.ps1 "winserver:${{ env.DSC_PATH }}/"
+          scp -P $WIN_SSH_PORT -i ~/.ssh/win_key \
+            dsc/HardeningConfig.ps1 \
+            dsc/IISConfig.ps1 \
+            dsc/Deploy-DSC.ps1 \
+            "$WIN_SSH_USER@$WIN_HOST:${{ env.DSC_PATH }}/"
 
       - name: Apply DSC configurations
         run: |
-          ssh winserver "powershell -ExecutionPolicy Bypass -File ${{ env.DSC_PATH }}\Deploy-DSC.ps1 -Mode Apply"
+          ssh -o ConnectTimeout=30 -p $WIN_SSH_PORT -i ~/.ssh/win_key "$WIN_SSH_USER@$WIN_HOST" \
+            "powershell -ExecutionPolicy Bypass -File ${{ env.DSC_PATH }}\Deploy-DSC.ps1 -Mode Apply"
 
       - name: Verify DSC state
         run: |
-          ssh winserver "powershell -ExecutionPolicy Bypass -File ${{ env.DSC_PATH }}\Deploy-DSC.ps1 -Mode Test"
+          ssh -o ConnectTimeout=30 -p $WIN_SSH_PORT -i ~/.ssh/win_key "$WIN_SSH_USER@$WIN_HOST" \
+            "powershell -ExecutionPolicy Bypass -File ${{ env.DSC_PATH }}\Deploy-DSC.ps1 -Mode Test"
