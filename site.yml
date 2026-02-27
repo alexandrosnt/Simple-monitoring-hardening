@@ -10,6 +10,3 @@
 
 # Real storage operations on Linux hosts
 - import_playbook: storage-management.yml
-
-# Windows management (uncomment when target available)
-# - import_playbook: windows-management.yml

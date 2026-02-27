@@ -1,6 +1,0 @@
----
-- hosts: windows
-  gather_facts: true
-  roles:
-    - windows_hardening
-    - windows_iis

@@ -4,6 +4,7 @@ name: Deploy Infrastructure
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy-linux:
@@ -51,28 +52,44 @@ jobs:
         run: ansible-playbook -i inventory.ini storage-management.yml
 
   deploy-windows:
-    name: Windows Server Playbook
+    name: Windows Server (DSC)
     runs-on: ubuntu-latest
-    needs: deploy-linux
+
+    env:
+      WIN_HOST: ${{ secrets.WIN_HOST }}
+      WIN_SSH_PORT: ${{ secrets.WIN_SSH_PORT || '2229' }}
+      WIN_SSH_USER: ${{ secrets.WIN_SSH_USER || 'Administrator' }}
+      DSC_PATH: 'C:\dsc'
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Ansible and WinRM
+      - name: Setup SSH
         run: |
-          sudo apt update
-          sudo apt install -y ansible
-          sudo pip3 install pywinrm requests --break-system-packages
-          python3 -c "import winrm; print('pywinrm OK')"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.WIN_SSH_PRIVATE_KEY }}" > ~/.ssh/win_key
+          chmod 600 ~/.ssh/win_key
+          ssh-keyscan -p $WIN_SSH_PORT $WIN_HOST >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Install Ansible collections
+      - name: Ensure remote directory exists
         run: |
-          ansible-galaxy collection install ansible.windows
-          ansible-galaxy collection install community.windows
-          ansible-galaxy collection install microsoft.iis
+          ssh -p $WIN_SSH_PORT -i ~/.ssh/win_key "$WIN_SSH_USER@$WIN_HOST" \
+            "powershell -Command \"New-Item -Path '${{ env.DSC_PATH }}' -ItemType Directory -Force\""
 
-      - name: Run Windows management
-        run: >
-          ansible-playbook -i inventory.ini windows-management.yml
-          -e "win_admin_password=${{ secrets.WIN_ADMIN_PASSWORD }}"
-          -e "ansible_winrm_read_timeout_sec=120"
-          -e "ansible_winrm_operation_timeout_sec=90"
+      - name: Copy DSC scripts
+        run: |
+          scp -P $WIN_SSH_PORT -i ~/.ssh/win_key \
+            dsc/HardeningConfig.ps1 \
+            dsc/IISConfig.ps1 \
+            dsc/Deploy-DSC.ps1 \
+            "$WIN_SSH_USER@$WIN_HOST:${{ env.DSC_PATH }}/"
+
+      - name: Apply DSC configurations
+        run: |
+          ssh -p $WIN_SSH_PORT -i ~/.ssh/win_key "$WIN_SSH_USER@$WIN_HOST" \
+            "powershell -ExecutionPolicy Bypass -File ${{ env.DSC_PATH }}\Deploy-DSC.ps1 -Mode Apply"
+
+      - name: Verify DSC state
+        run: |
+          ssh -p $WIN_SSH_PORT -i ~/.ssh/win_key "$WIN_SSH_USER@$WIN_HOST" \
+            "powershell -ExecutionPolicy Bypass -File ${{ env.DSC_PATH }}\Deploy-DSC.ps1 -Mode Test"

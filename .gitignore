@@ -28,3 +28,6 @@ credentials.json
 *.tfstate
 *.tfstate.backup
 .terraform/
+
+# DSC compiled configurations
+*.mof
